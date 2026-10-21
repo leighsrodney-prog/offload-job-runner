@@ -1,5 +1,7 @@
 # offload-job-runner
 
+[![CI](https://github.com/leighsrodney-prog/offload-job-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/leighsrodney-prog/offload-job-runner/actions/workflows/ci.yml)
+
 Run memory-heavy or long jobs on GitHub Actions instead of on a small, shared
 agent computer.
 
@@ -109,6 +111,10 @@ shellcheck offload_job.sh
 The tests need no network. The `ci` workflow runs both on every push.
 
 What was tested: the 3 unit tests plus 1 live run. Unit tests cover the sample job and the helper's input checks. Dispatch, run lookup and artifact download were verified with a live run on a test repo.
+
+## Authorship
+
+Built with AI coding assistance. I defined the requirements, ran the tests, and reviewed the changes.
 
 ## License
 
