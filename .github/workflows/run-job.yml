@@ -1,0 +1,47 @@
+name: run-job
+on:
+  workflow_dispatch:
+    inputs:
+      job: {description: "Script name under jobs/ (no .py)", required: true, type: string}
+      args: {description: "Arguments string (split on whitespace, never eval'd)", required: false, default: "", type: string}
+      job_id: {description: "Unique job id (used to find the run and name the artifact)", required: true, type: string}
+run-name: "job ${{ inputs.job }} [${{ inputs.job_id }}]"
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      JOB: ${{ inputs.job }}
+      ARGS: ${{ inputs.args }}
+      JOB_ID: ${{ inputs.job_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate inputs
+        run: |
+          [[ "$JOB" =~ ^[a-z0-9_-]+$ ]] || { echo "invalid job name"; exit 1; }
+          [[ "$JOB_ID" =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "invalid job_id"; exit 1; }
+          [ -f "jobs/$JOB.py" ] || { echo "jobs/$JOB.py not found"; exit 1; }
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install requirements
+        run: if [ -f jobs/requirements.txt ]; then pip install -r jobs/requirements.txt; fi
+      - name: Run job
+        run: |
+          mkdir -p out
+          start=$(date +%s)
+          read -r -a A <<< "$ARGS"
+          set +e
+          /usr/bin/time -v -o out/_time.txt python "jobs/$JOB.py" "${A[@]}" 2>&1 | tee out/_log.txt
+          rc=${PIPESTATUS[0]}
+          rss=$(grep 'Maximum resident' out/_time.txt | awk '{print $NF}')
+          echo "{\"job\":\"$JOB\",\"job_id\":\"$JOB_ID\",\"exit_code\":$rc,\"wall_seconds\":$(( $(date +%s)-start )),\"max_rss_kb\":${rss:-null}}" > out/_run_meta.json
+          cat out/_run_meta.json
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result-${{ inputs.job_id }}
+          path: out/
+          retention-days: 7
